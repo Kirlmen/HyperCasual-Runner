@@ -6,14 +6,18 @@ public class PlayerController : MonoBehaviour
 {
     public static PlayerController CurrentPlayerController;
 
-    [SerializeField] float limitX;
-    public float xSpeed;
+    [SerializeField] float limitX; //yatay x limiti.
+    public float xSpeed; //swipe
     public float runnigSpeed;
     private float _currentRunningSpeed;
     public GameObject ridingCylinderPrefab;
     public List<RidingCylinder> cylinders; //silindirleri depoladığımız liste.
+    public GameObject bridgePieces; //köprüde yürürken kullanacağı parçalar.
+    private bool _isSpawningBridge; //true da köprü oluşturuyor olacak. false oluşturmuyor olacak.
+    private BridgeSpawner _bridgeSpawner;
+    private float _creatingBridgeTimer;
 
-    public
+
 
     void Start()
     {
@@ -41,14 +45,53 @@ public class PlayerController : MonoBehaviour
         Vector3 newPosition = new Vector3(newX, transform.position.y, transform.position.z + _currentRunningSpeed * Time.deltaTime);
         transform.position = newPosition;
 
+        //köprü yaratıp yaratmadığını kontrol;
+        if (_isSpawningBridge)
+        {
+            _creatingBridgeTimer -= Time.deltaTime; //bu değişkenden geriye saniye sayıyormuş gibi oluyor. Her karede değilde belli bir zaman aralığında parçaları koymaya yarayacak.
+            if (_creatingBridgeTimer < 0) //0dan küçük ise yeni köprü parçasını yaratıcaz
+            {
+                _creatingBridgeTimer = 0.01f;
+                IncraseCylinderVolume(-0.01f);
+                GameObject createdBridgePiece = Instantiate(bridgePieces);
+                Vector3 direction = _bridgeSpawner.endReference.transform.position - _bridgeSpawner.startReference.transform.position;
+                float distance = direction.magnitude;
+                direction = direction.normalized;
+                createdBridgePiece.transform.forward = direction; //objenin yönünü köprünün yönüyle eşitliyoruz.
+                float characterDistance = transform.position.z - _bridgeSpawner.startReference.transform.position.z;
+                characterDistance = Mathf.Clamp(characterDistance, 0, distance);
+                Vector3 newPiecePosition = _bridgeSpawner.startReference.transform.position + direction * characterDistance;
+                newPiecePosition.x = transform.position.x;
+                createdBridgePiece.transform.position = newPiecePosition;
+            }
+        }
+
+
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (other.tag == "AddCylinder")
         {
-            IncraseCylinderVolume(0.2f);
+            IncraseCylinderVolume(0.1f); //10 tane add cylinder var. Value max 1 yapacağım. Dolayısıyla 0.1*10 = 1;
             Destroy(other.gameObject);
+        }
+        else if (other.tag == "SpawnBridge")
+        {
+            StartSpawningBridge(other.transform.parent.GetComponent<BridgeSpawner>());
+        }
+        else if (other.tag == "StopSpawnBridge")
+        {
+            StopSpawningBridge();
+        }
+
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (other.tag == "Trap")
+        {
+            IncraseCylinderVolume(-Time.fixedDeltaTime); // ontriggerstay fizik ile çalıştığı için içinde kaldığı zamanla azaltma yapmamız lazım.
         }
     }
 
@@ -85,4 +128,14 @@ public class PlayerController : MonoBehaviour
         Destroy(cylinder.gameObject); //listeden çıkardığımız silindiri sahneden yok ediyoruz.
     }
 
+    public void StartSpawningBridge(BridgeSpawner bridgeSpawner)
+    {
+        _bridgeSpawner = bridgeSpawner;
+        _isSpawningBridge = true;
+    }
+
+    public void StopSpawningBridge()
+    {
+        _isSpawningBridge = false;
+    }
 }
