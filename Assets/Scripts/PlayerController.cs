@@ -6,32 +6,52 @@ public class PlayerController : MonoBehaviour
 {
     public static PlayerController CurrentPlayerController;
 
+
+    [SerializeField] public Animator animator;
     [SerializeField] float limitX; //yatay x limiti.
+
     public float xSpeed; //swipe
     public float runnigSpeed;
-    private float _currentRunningSpeed;
     public GameObject ridingCylinderPrefab;
     public List<RidingCylinder> cylinders; //silindirleri depoladığımız liste.
     public GameObject bridgePieces; //köprüde yürürken kullanacağı parçalar.
+    public AudioSource cylinderSound;
+
     private bool _isSpawningBridge; //true da köprü oluşturuyor olacak. false oluşturmuyor olacak.
     private BridgeSpawner _bridgeSpawner;
     private float _creatingBridgeTimer;
+    private float _currentRunningSpeed;
+    private bool _isFinished;
+    private float _scoreTimer;
 
 
 
+    private float _lastTouchedX;
     void Start()
     {
         CurrentPlayerController = this;
-        _currentRunningSpeed = runnigSpeed;
     }
 
     void Update()
     {
+        if (LevelController.Current == null || !LevelController.Current.isGameActive)
+        {
+            return;
+        }
         float newX = 0;
         float touchXDelta = 0;
-        if (Input.touchCount < 0 && Input.GetTouch(0).phase == TouchPhase.Moved)
+        if (Input.touchCount > 0)
         {
-            touchXDelta = Input.GetTouch(0).deltaPosition.x / Screen.width;
+            if (Input.GetTouch(0).phase == TouchPhase.Began)
+            {
+                _lastTouchedX = Input.GetTouch(0).position.x;
+            }
+            else if (Input.GetTouch(0).phase == TouchPhase.Moved)
+            {
+                touchXDelta = 5 * (_lastTouchedX - Input.GetTouch(0).position.x) / Screen.width;
+                _lastTouchedX = Input.GetTouch(0).position.x;
+            }
+
         }
         else if (Input.GetMouseButton(0))
         {
@@ -63,11 +83,29 @@ public class PlayerController : MonoBehaviour
                 Vector3 newPiecePosition = _bridgeSpawner.startReference.transform.position + direction * characterDistance;
                 newPiecePosition.x = transform.position.x;
                 createdBridgePiece.transform.position = newPiecePosition;
+
+                if (_isFinished)
+                {
+                    _scoreTimer -= Time.deltaTime; //geriye saymaya başla.
+                    if (_scoreTimer <= 0)
+                    {
+                        _scoreTimer = 0.3f;
+                        LevelController.Current.ChangeScore(1);
+                    }
+                }
             }
         }
 
 
     }
+
+    public void ChangeSpeed(float value)
+    {
+        _currentRunningSpeed = value;
+    }
+
+
+
 
     private void OnTriggerEnter(Collider other)
     {
@@ -83,6 +121,16 @@ public class PlayerController : MonoBehaviour
         else if (other.tag == "StopSpawnBridge")
         {
             StopSpawningBridge();
+            if (_isFinished)
+            {
+                LevelController.Current.FinishGame();
+            }
+
+        }
+        else if (other.tag == "Finish")
+        {
+            _isFinished = true;
+            StartSpawningBridge(other.transform.parent.GetComponent<BridgeSpawner>());
         }
 
     }
@@ -106,13 +154,30 @@ public class PlayerController : MonoBehaviour
             }
             else
             {
-                //gameover.
+                if (_isFinished)
+                {
+                    LevelController.Current.FinishGame();
+                }
+                else
+                {
+                    StartCoroutine(Dead());
+                }
             }
         }
         else
         {
             cylinders[cylinders.Count - 1].IncraseCylinderVolume(value); //ayağımızda silindir varsa en aşağıdaki elemanın(listenin en sonundaki) boyutunu güncelleyeceğiz. girilen value kadar. 
         }
+    }
+
+
+    IEnumerator Dead()
+    {
+        animator.SetBool("dead", true);
+        LevelController.Current.GameOver();
+        Camera.main.transform.SetParent(null); //ölünce kamera takip etmesin.
+        yield return new WaitForSeconds(2.3f);
+        _bridgeSpawner.hiddenPlatform.enabled = false;
     }
 
     public void CreateRidingCylinder(float value) //silindir yarat. ne kadar büyük olması gerektiği de parametreden geliyor.
