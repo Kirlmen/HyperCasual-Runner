@@ -12,14 +12,19 @@ public class LevelController : MonoBehaviour
     public bool isGameActive = false;
     public float maxDistance;
 
+
     int currentLevel;
     int score;
 
-
+    [SerializeField] AudioSource audioSource;
+    [SerializeField] AudioClip gameOverClip;
+    [SerializeField] AudioClip finishGameClip;
     [SerializeField] GameObject finishLine;
     [SerializeField] Slider levelProgressBar;
     [SerializeField] GameObject startMenu, gameMenu, gameOverMenu, finishMenu;
-    [SerializeField] TMP_Text scoreText, finishScoreTxt, currentLvlTxt, nextLvlTxt;
+    [SerializeField]
+    TMP_Text scoreText, finishScoreTxt, currentLvlTxt, nextLvlTxt, startMenuGoldTxt, gameOverGoldTxt, finishMenuGoldText;
+
 
 
     // Start is called before the first frame update
@@ -35,7 +40,10 @@ public class LevelController : MonoBehaviour
         {
             currentLvlTxt.text = (currentLevel + 1).ToString();
             nextLvlTxt.text = (currentLevel + 2).ToString();
+            UpdateGoldText();
         }
+
+        audioSource = Camera.main.GetComponent<AudioSource>();
     }
 
     private void Update()
@@ -71,6 +79,9 @@ public class LevelController : MonoBehaviour
 
     public void GameOver()
     {
+        UpdateGoldText();
+        audioSource.Stop();
+        audioSource.PlayOneShot(gameOverClip);
         gameMenu.SetActive(false);
         gameOverMenu.SetActive(true);
         isGameActive = false;
@@ -78,6 +89,9 @@ public class LevelController : MonoBehaviour
 
     public void FinishGame()
     {
+        GiveGoldToPlayer(score);
+        audioSource.Stop();
+        audioSource.PlayOneShot(finishGameClip);
         PlayerPrefs.SetInt("currentLevel", currentLevel + 1);
         finishScoreTxt.text = score.ToString();
         gameMenu.SetActive(false);
@@ -90,6 +104,22 @@ public class LevelController : MonoBehaviour
         score += incrase;
         scoreText.text = score.ToString();
 
+    }
+
+    public void UpdateGoldText()
+    {
+        int gold = PlayerPrefs.GetInt("gold");
+        startMenuGoldTxt.text = gold.ToString();
+        finishMenuGoldText.text = gold.ToString();
+        gameOverGoldTxt.text = gold.ToString();
+    }
+
+    public void GiveGoldToPlayer(int increment)
+    {
+        int gold = PlayerPrefs.GetInt("gold");
+        gold = Mathf.Max(0, gold + increment);
+        PlayerPrefs.SetInt("gold", gold);
+        UpdateGoldText();
     }
 
 

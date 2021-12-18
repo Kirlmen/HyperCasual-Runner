@@ -9,14 +9,18 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] public Animator animator;
     [SerializeField] float limitX; //yatay x limiti.
+    [SerializeField] float cylinderDecrasingValue = 0.1f;
 
     public float xSpeed; //swipe
     public float runnigSpeed;
     public GameObject ridingCylinderPrefab;
     public List<RidingCylinder> cylinders; //silindirleri depoladığımız liste.
     public GameObject bridgePieces; //köprüde yürürken kullanacağı parçalar.
-    public AudioSource cylinderSound;
+    public AudioSource cylinderSound, triggerSound;
+    public AudioClip gatherClip, dropClip, coinClip;
 
+
+    private float _dropSoundTimer;
     private bool _isSpawningBridge; //true da köprü oluşturuyor olacak. false oluşturmuyor olacak.
     private BridgeSpawner _bridgeSpawner;
     private float _creatingBridgeTimer;
@@ -68,11 +72,12 @@ public class PlayerController : MonoBehaviour
         //köprü yaratıp yaratmadığını kontrol;
         if (_isSpawningBridge)
         {
+            PlayDropSound();
             _creatingBridgeTimer -= Time.deltaTime; //bu değişkenden geriye saniye sayıyormuş gibi oluyor. Her karede değilde belli bir zaman aralığında parçaları koymaya yarayacak.
             if (_creatingBridgeTimer < 0) //0dan küçük ise yeni köprü parçasını yaratıcaz
             {
-                _creatingBridgeTimer = 0.01f;
-                IncraseCylinderVolume(-0.01f);
+                _creatingBridgeTimer = 0.1f;
+                IncraseCylinderVolume(-cylinderDecrasingValue);
                 GameObject createdBridgePiece = Instantiate(bridgePieces);
                 Vector3 direction = _bridgeSpawner.endReference.transform.position - _bridgeSpawner.startReference.transform.position;
                 float distance = direction.magnitude;
@@ -111,6 +116,7 @@ public class PlayerController : MonoBehaviour
     {
         if (other.tag == "AddCylinder")
         {
+            cylinderSound.PlayOneShot(gatherClip, 0.1f);
             IncraseCylinderVolume(0.1f); //10 tane add cylinder var. Value max 1 yapacağım. Dolayısıyla 0.1*10 = 1;
             Destroy(other.gameObject);
         }
@@ -132,15 +138,27 @@ public class PlayerController : MonoBehaviour
             _isFinished = true;
             StartSpawningBridge(other.transform.parent.GetComponent<BridgeSpawner>());
         }
+        else if (other.tag == "Coin")
+        {
+            triggerSound.PlayOneShot(coinClip, 0.1f);
+            other.tag = "Untagged";
+            LevelController.Current.ChangeScore(10);
+            Destroy(other.gameObject);
+        }
 
     }
 
     private void OnTriggerStay(Collider other)
     {
-        if (other.tag == "Trap")
+        if (LevelController.Current.isGameActive)
         {
-            IncraseCylinderVolume(-Time.fixedDeltaTime); // ontriggerstay fizik ile çalıştığı için içinde kaldığı zamanla azaltma yapmamız lazım.
+            if (other.tag == "Trap")
+            {
+                PlayDropSound();
+                IncraseCylinderVolume(-Time.fixedDeltaTime); // ontriggerstay fizik ile çalıştığı için içinde kaldığı zamanla azaltma yapmamız lazım.
+            }
         }
+
     }
 
 
@@ -177,7 +195,9 @@ public class PlayerController : MonoBehaviour
         LevelController.Current.GameOver();
         Camera.main.transform.SetParent(null); //ölünce kamera takip etmesin.
         yield return new WaitForSeconds(2.3f);
-        _bridgeSpawner.hiddenPlatform.enabled = false;
+        GameObject hidden = GameObject.FindGameObjectWithTag("HiddenPlatform");
+        hidden.SetActive(false);
+
     }
 
     public void CreateRidingCylinder(float value) //silindir yarat. ne kadar büyük olması gerektiği de parametreden geliyor.
@@ -202,5 +222,16 @@ public class PlayerController : MonoBehaviour
     public void StopSpawningBridge()
     {
         _isSpawningBridge = false;
+    }
+
+
+    public void PlayDropSound()
+    {
+        _dropSoundTimer -= Time.deltaTime; //geri sayma
+        if (_dropSoundTimer < 0)
+        {
+            _dropSoundTimer = 0.15f;
+            cylinderSound.PlayOneShot(dropClip, 0.1f);
+        }
     }
 }
