@@ -11,6 +11,7 @@ public class LevelController : MonoBehaviour
     public static LevelController Current;
     public bool isGameActive = false;
     public float maxDistance;
+    public DailyReward dailyReward;
 
 
     int currentLevel;
@@ -21,9 +22,9 @@ public class LevelController : MonoBehaviour
     [SerializeField] AudioClip finishGameClip;
     [SerializeField] GameObject finishLine;
     [SerializeField] Slider levelProgressBar;
-    [SerializeField] GameObject startMenu, gameMenu, gameOverMenu, finishMenu;
-    [SerializeField]
-    TMP_Text scoreText, finishScoreTxt, currentLvlTxt, nextLvlTxt, startMenuGoldTxt, gameOverGoldTxt, finishMenuGoldText;
+    [SerializeField] public GameObject startMenu, gameMenu, gameOverMenu, finishMenu;
+    [SerializeField] TMP_Text scoreText, finishScoreTxt, currentLvlTxt, nextLvlTxt, startMenuGoldTxt, gameOverGoldTxt, finishMenuGoldText;
+
 
 
 
@@ -32,17 +33,12 @@ public class LevelController : MonoBehaviour
     {
         currentLevel = PlayerPrefs.GetInt("currentLevel");
         Current = this;
-        if (SceneManager.GetActiveScene().name != "Level " + currentLevel) //player prefsten o anki level neyse onu çekecek.
-        {
-            SceneManager.LoadScene("Level " + currentLevel);
-        }
-        else
-        {
-            currentLvlTxt.text = (currentLevel + 1).ToString();
-            nextLvlTxt.text = (currentLevel + 2).ToString();
-            UpdateGoldText();
-        }
-
+        PlayerController.CurrentPlayerController = GameObject.FindObjectOfType<PlayerController>();
+        GameObject.FindObjectOfType<MarketController>().InitializeMarketController();
+        dailyReward.InitilalizeDailyReward();
+        currentLvlTxt.text = (currentLevel + 1).ToString();
+        nextLvlTxt.text = (currentLevel + 2).ToString();
+        UpdateGoldText();
         audioSource = Camera.main.GetComponent<AudioSource>();
     }
 
@@ -69,12 +65,12 @@ public class LevelController : MonoBehaviour
 
     public void RestartLevel()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        LevelLoader.Current.ChangeLevel(SceneManager.GetActiveScene().name);
     }
 
     public void LoadNextLevel()
     {
-        SceneManager.LoadScene("Level " + (currentLevel + 1));
+        LevelLoader.Current.ChangeLevel("Level " + (currentLevel + 1));
     }
 
     public void GameOver()

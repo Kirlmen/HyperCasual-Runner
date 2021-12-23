@@ -9,15 +9,16 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] public Animator animator;
     [SerializeField] float limitX; //yatay x limiti.
-    [SerializeField] float cylinderDecrasingValue = 0.1f;
+    [SerializeField] float cylinderDecreasingValue = 0.1f;
 
     public float xSpeed; //swipe
     public float runnigSpeed;
     public GameObject ridingCylinderPrefab;
     public List<RidingCylinder> cylinders; //silindirleri depoladığımız liste.
     public GameObject bridgePieces; //köprüde yürürken kullanacağı parçalar.
-    public AudioSource cylinderSound, triggerSound;
-    public AudioClip gatherClip, dropClip, coinClip;
+    public AudioSource cylinderSound, triggerSound, itemSound;
+    public AudioClip gatherClip, dropClip, coinClip, buyClip, equipItemClip, unequipItemClip;
+    public List<GameObject> wearSpots;
 
 
     private float _dropSoundTimer;
@@ -27,14 +28,10 @@ public class PlayerController : MonoBehaviour
     private float _currentRunningSpeed;
     private bool _isFinished;
     private float _scoreTimer;
-
-
-
     private float _lastTouchedX;
-    void Start()
-    {
-        CurrentPlayerController = this;
-    }
+
+
+
 
     void Update()
     {
@@ -52,7 +49,7 @@ public class PlayerController : MonoBehaviour
             }
             else if (Input.GetTouch(0).phase == TouchPhase.Moved)
             {
-                touchXDelta = 5 * (_lastTouchedX - Input.GetTouch(0).position.x) / Screen.width;
+                touchXDelta = 5 * (Input.GetTouch(0).position.x - _lastTouchedX) / Screen.width; //fixed movement
                 _lastTouchedX = Input.GetTouch(0).position.x;
             }
 
@@ -77,8 +74,9 @@ public class PlayerController : MonoBehaviour
             if (_creatingBridgeTimer < 0) //0dan küçük ise yeni köprü parçasını yaratıcaz
             {
                 _creatingBridgeTimer = 0.1f;
-                IncraseCylinderVolume(-cylinderDecrasingValue);
-                GameObject createdBridgePiece = Instantiate(bridgePieces);
+                IncreaseCylinderVolume(-cylinderDecreasingValue);
+                GameObject createdBridgePiece = Instantiate(bridgePieces, this.transform);
+                createdBridgePiece.transform.SetParent(null);
                 Vector3 direction = _bridgeSpawner.endReference.transform.position - _bridgeSpawner.startReference.transform.position;
                 float distance = direction.magnitude;
                 direction = direction.normalized;
@@ -117,7 +115,7 @@ public class PlayerController : MonoBehaviour
         if (other.tag == "AddCylinder")
         {
             cylinderSound.PlayOneShot(gatherClip, 0.1f);
-            IncraseCylinderVolume(0.1f); //10 tane add cylinder var. Value max 1 yapacağım. Dolayısıyla 0.1*10 = 1;
+            IncreaseCylinderVolume(0.1f); //10 tane add cylinder var. Value max 1 yapacağım. Dolayısıyla 0.1*10 = 1;
             Destroy(other.gameObject);
         }
         else if (other.tag == "SpawnBridge")
@@ -155,14 +153,14 @@ public class PlayerController : MonoBehaviour
             if (other.tag == "Trap")
             {
                 PlayDropSound();
-                IncraseCylinderVolume(-Time.fixedDeltaTime); // ontriggerstay fizik ile çalıştığı için içinde kaldığı zamanla azaltma yapmamız lazım.
+                IncreaseCylinderVolume(-Time.fixedDeltaTime); // ontriggerstay fizik ile çalıştığı için içinde kaldığı zamanla azaltma yapmamız lazım.
             }
         }
 
     }
 
 
-    public void IncraseCylinderVolume(float value) //silindirin hacmini arttır.
+    public void IncreaseCylinderVolume(float value) //silindirin hacmini arttır.
     {
         if (cylinders.Count == 0) //ayağımızın altında hiç silindir yoksa;
         {
